@@ -68,6 +68,30 @@ void oopDesc::add_access_counter(uintptr_t increment) {
   }
 }
 
+uintptr_t oopDesc::staleness_counter() const {
+  return HeapAccess<MO_RELAXED>::load_at(as_oop(), staleness_counter_offset_in_bytes());
+}
+
+void oopDesc::set_staleness_counter(uintptr_t new_value){
+  HeapAccess<MO_RELAXED>::store_at(as_oop(), staleness_counter_offset_in_bytes(), new_value);
+  if (new_value == 0){
+  }
+}
+
+void oopDesc::add_staleness_counter(uintptr_t increment) {
+  uintptr_t ac = staleness_counter();
+  // code below prevents overflow
+  if (UINTPTR_MAX - increment > ac){
+    set_staleness_counter(ac + increment);
+  }
+  else {
+    printf("Access Counter reaches UINTPTR_MAX\n");
+    if (ac < UINTPTR_MAX){
+      set_staleness_counter(UINTPTR_MAX);
+    }
+  }
+}
+
 uintptr_t oopDesc::gc_epoch() const {
   return HeapAccess<MO_RELAXED>::load_at(as_oop(), gc_epoch_offset_in_bytes());
 }

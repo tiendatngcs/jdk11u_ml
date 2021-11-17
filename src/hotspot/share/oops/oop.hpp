@@ -57,6 +57,7 @@ class oopDesc {
   friend class JVMCIVMStructs;
  private:
   volatile uintptr_t _access_counter;
+  volatile uintptr_t _staleness_counter; // Number of gc cycle this object is not accessed
   volatile uintptr_t _gc_epoch;
   volatile markOop _mark;
   union _metadata {
@@ -67,6 +68,7 @@ class oopDesc {
  public:
   oopDesc();
   inline uintptr_t access_counter() const;
+  inline uintptr_t staleness_counter() const;
   inline uintptr_t gc_epoch() const;
   inline markOop  mark()          const;
   inline markOop  mark_raw()      const;
@@ -74,6 +76,9 @@ class oopDesc {
 
   inline void set_access_counter(uintptr_t new_value);
   inline void add_access_counter(uintptr_t increment);
+
+  inline void set_staleness_counter(uintptr_t new_value);
+  inline void add_staleness_counter(uintptr_t increment);
 
   inline void set_gc_epoch(uintptr_t new_value);
   inline void add_gc_epoch(uintptr_t increment);
@@ -335,6 +340,7 @@ class oopDesc {
 
   // for code generation
   static int access_counter_offset_in_bytes() { return offset_of(oopDesc, _access_counter); }
+  static int staleness_counter_offset_in_bytes() { return offset_of(oopDesc, _access_counter); }
   static int gc_epoch_offset_in_bytes() { return offset_of(oopDesc, _gc_epoch); }
   static int mark_offset_in_bytes()      { return offset_of(oopDesc, _mark); }
   static int klass_offset_in_bytes()     { return offset_of(oopDesc, _metadata._klass); }

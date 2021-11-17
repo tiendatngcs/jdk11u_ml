@@ -242,6 +242,7 @@ public:
 
   void update_histogram(oop obj);
   void reset_histogram();
+  void print_oop_staleness_stats(oop obj);
 
 
   void increase_gc_epoch(uintptr_t increment);

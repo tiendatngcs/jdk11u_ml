@@ -37,7 +37,7 @@ bool always_do_update_barrier = false;
 
 oopDesc::oopDesc(){
   printf("New oopdesc created\n");
-  set_access_counter(0);
+  set_staleness_counter(0);
   set_gc_epoch(0);
 }
 

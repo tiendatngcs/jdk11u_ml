@@ -41,7 +41,7 @@ public:
 
   void record_cycle_start();
 
-  virtual bool should_start_gc() const;
+  virtual bool should_start_gc();
 
   virtual const char* name()     { return "QTable"; }
   virtual bool is_diagnostic()   { return false; }

@@ -101,7 +101,7 @@ void ShenandoahQTableHeuristics::record_cycle_start() {
   ShenandoahHeuristics::record_cycle_start();
 }
 
-// bool ShenandoahQTableHeuristics::should_start_gc() const {
+// bool ShenandoahQTableHeuristics::should_start_gc() {
 //   ShenandoahHeap* heap = ShenandoahHeap::heap();
 //   size_t max_capacity = heap->max_capacity();
 //   size_t capacity = heap->soft_max_capacity();
@@ -168,7 +168,7 @@ void ShenandoahQTableHeuristics::record_cycle_start() {
 //   return ShenandoahHeuristics::should_start_gc();
 // }
 
-bool ShenandoahQTableHeuristics::should_start_gc() const {
+bool ShenandoahQTableHeuristics::should_start_gc() {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   size_t max_capacity = heap->max_capacity();
   size_t capacity = heap->soft_max_capacity();

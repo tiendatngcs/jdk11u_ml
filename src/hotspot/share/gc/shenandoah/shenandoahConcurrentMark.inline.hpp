@@ -268,6 +268,12 @@ inline void ShenandoahConcurrentMark::mark_through_ref(T *p, ShenandoahHeap* hea
     }
     heap->increase_hotness_size(obj);
     heap->update_histogram(obj);
+
+    heap->oop_check_to_reset_access_counter(obj);
+    if (obj != NULL && obj->access_counter() == 0) {
+      obj->add_staleness_counter(1);
+    }
+    heap->print_oop_staleness_stats(obj);
   }
 }
 

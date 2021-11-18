@@ -975,12 +975,6 @@ void ShenandoahHeap::reset_histogram() {
   memset(_size_histogram, 0, sizeof(_size_histogram));
 }
 
-void ShenandoahHeap::print_oop_staleness_stats(oop obj) {
-  if (obj != NULL){
-    log_info(gc)("Reachable obj: %lu:%p:%d\n", gc_epoch(), obj, obj->size());
-  }
-}
-
 void ShenandoahHeap::increase_gc_epoch(uintptr_t increment) {
   // Atomic::add(increment, &_gc_epoch);
   _gc_epoch += increment;

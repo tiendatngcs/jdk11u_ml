@@ -170,7 +170,6 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_loa
   if (base != NULL){
     // base->add_access_counter(1);
     bs->oop_add_access_counter(base, 1);
-    base->set_staleness_counter(0);
   }
 
   oop value = Raw::oop_load_in_heap_at(base, offset);
@@ -179,7 +178,6 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_loa
   if (value != NULL){
     // value->add_access_counter(1);
     bs->oop_add_access_counter(value, 1);
-    value->set_staleness_counter(0);
     // printf("Barrier triggered at %s | %s | line %d | access_counter=%lu\n", __FILE__, __func__, __LINE__, value->access_counter());
   }
 
@@ -218,12 +216,10 @@ inline void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_st
   if (base != NULL){
     // base->add_access_counter(1);
     bs->oop_add_access_counter(base, 1);
-    base->set_staleness_counter(0);
   }
   if (value != NULL){
     // value->add_access_counter(1);
     bs->oop_add_access_counter(value, 1);
-    value->set_staleness_counter(0);
   }
 
   oop_store_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), value);
@@ -265,23 +261,19 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
   if (base != NULL){
     // base->add_access_counter(1);
     bs->oop_add_access_counter(base, 1);
-    base->set_staleness_counter(0);
   }
   oop value = Raw::oop_load_in_heap_at(base, offset);
   if (value != NULL){
     // value->add_access_counter(1);
     bs->oop_add_access_counter(value, 1);
-    value->set_staleness_counter(0);
   }
   if (compare_value != NULL){
     // compare_value->add_access_counter(1);
     bs->oop_add_access_counter(compare_value, 1);
-    compare_value->set_staleness_counter(0);
   }
   if (new_value != NULL){
     // new_value->add_access_counter(1);
     bs->oop_add_access_counter(new_value, 1);
-    new_value->set_staleness_counter(0);
   }
   return oop_atomic_cmpxchg_in_heap(new_value, AccessInternal::oop_field_addr<decorators>(base, offset), compare_value);
 }
@@ -314,18 +306,15 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
   ShenandoahBarrierSet *const bs = ShenandoahBarrierSet::barrier_set();
   if (base != NULL){
     bs->oop_add_access_counter(base, 1);
-    base->set_staleness_counter(0);
   }
   oop value = Raw::oop_load_in_heap_at(base, offset);
   if (value != NULL){
     // value->add_access_counter(1);
     bs->oop_add_access_counter(value, 1);
-    value->set_staleness_counter(0);
   }
   if (new_value != NULL){
     // new_value->add_access_counter(1);
     bs->oop_add_access_counter(new_value, 1);
-    new_value->set_staleness_counter(0);
   }
   return oop_atomic_xchg_in_heap_impl(new_value, AccessInternal::oop_field_addr<decorators>(base, offset));
 }
@@ -338,12 +327,10 @@ void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap
   if (src != NULL){
     // src->add_access_counter(1);
     bs->oop_add_access_counter(src, 1);
-    src->set_staleness_counter(0);
   }
   if (dst != NULL){
     // dst->add_access_counter(1);
     bs->oop_add_access_counter(dst, 1);
-    dst->set_staleness_counter(0);
   }
   if (ShenandoahCloneBarrier) {
     bs->clone_barrier_runtime(src);
@@ -361,12 +348,10 @@ bool ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy
   if (src_obj != NULL){
     // src_obj->add_access_counter(1);
     bs->oop_add_access_counter(src_obj, 1);
-    src_obj->set_staleness_counter(0);
   }
   if (dst_obj != NULL){
     // dst_obj->add_access_counter(1);
     bs->oop_add_access_counter(dst_obj, 1);
-    dst_obj->set_staleness_counter(0);
   }
   
   bs->arraycopy_barrier(arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw),

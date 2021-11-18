@@ -243,7 +243,7 @@ bool ShenandoahQTableHeuristics::should_start_gc() const {
   if (action) {
     log_info(gc)("Trigger: in learning process\n");
   }
-  return action
+  return action;
 }
 
 bool ShenandoahQTableHeuristics::take_action(bool in_learning){

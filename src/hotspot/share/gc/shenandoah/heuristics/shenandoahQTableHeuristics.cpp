@@ -301,7 +301,7 @@ void ShenandoahQTableHeuristics::update_qtable() {
   size_t available = heap->free_set()->available();
 
   int new_qtable_idx = static_cast<int>((available/capacity)*127);
-  int old_qtable_idx = static_cast<int>((_last_available/capacity)*127));
+  int old_qtable_idx = static_cast<int>((_last_available/capacity)*127);
   float max_at_new_idx = (_qtable[new_qtable_idx][0] > _qtable[new_qtable_idx][1]) ? _qtable[new_qtable_idx][0] : _qtable[new_qtable_idx][1];
   int last_action = static_cast<int>(_last_action);
   assert(last_action < 2 && last_action >= 0, "Action must be 0 or 1");

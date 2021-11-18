@@ -32,8 +32,9 @@
 #include "logging/logTag.hpp"
 #include "utilities/quickSort.hpp"
 
-ShenandoahQTableHeuristics::ShenandoahQTableHeuristics() : ShenandoahHeuristics() {
+ShenandoahQTableHeuristics::ShenandoahQTableHeuristics() : ShenandoahHeuristics(), _is_first_call(true) {
   printf("QTableHeuristics chosen ...\n");
+  memset(_qtable, 0, sizeof(_qtable));
 }
 
 ShenandoahQTableHeuristics::~ShenandoahQTableHeuristics() {}
@@ -100,6 +101,73 @@ void ShenandoahQTableHeuristics::record_cycle_start() {
   ShenandoahHeuristics::record_cycle_start();
 }
 
+// bool ShenandoahQTableHeuristics::should_start_gc() const {
+//   ShenandoahHeap* heap = ShenandoahHeap::heap();
+//   size_t max_capacity = heap->max_capacity();
+//   size_t capacity = heap->soft_max_capacity();
+//   size_t available = heap->free_set()->available();
+
+//   // Make sure the code below treats available without the soft tail.
+//   size_t soft_tail = max_capacity - capacity;
+//   available = (available > soft_tail) ? (available - soft_tail) : 0;
+
+//   // Check if we are falling below the worst limit, time to trigger the GC, regardless of
+//   // anything else.
+//   size_t min_threshold = capacity / 100 * ShenandoahMinFreeThreshold;
+//   if (available < min_threshold) {
+//     log_info(gc)("Trigger: Free (" SIZE_FORMAT "%s) is below minimum threshold (" SIZE_FORMAT "%s)",
+//                  byte_size_in_proper_unit(available),     proper_unit_for_byte_size(available),
+//                  byte_size_in_proper_unit(min_threshold), proper_unit_for_byte_size(min_threshold));
+//     return true;
+//   }
+
+//   // Check if are need to learn a bit about the application
+//   const size_t max_learn = ShenandoahLearningSteps;
+//   if (_gc_times_learned < max_learn) {
+//     size_t init_threshold = capacity / 100 * ShenandoahInitFreeThreshold;
+//     if (available < init_threshold) {
+//       log_info(gc)("Trigger: Learning " SIZE_FORMAT " of " SIZE_FORMAT ". Free (" SIZE_FORMAT "%s) is below initial threshold (" SIZE_FORMAT "%s)",
+//                    _gc_times_learned + 1, max_learn,
+//                    byte_size_in_proper_unit(available),      proper_unit_for_byte_size(available),
+//                    byte_size_in_proper_unit(init_threshold), proper_unit_for_byte_size(init_threshold));
+//       return true;
+//     }
+//   }
+
+//   // Check if allocation headroom is still okay. This also factors in:
+//   //   1. Some space to absorb allocation spikes
+//   //   2. Accumulated penalties from Degenerated and Full GC
+
+//   size_t allocation_headroom = available;
+
+//   size_t spike_headroom = capacity / 100 * ShenandoahAllocSpikeFactor;
+//   size_t penalties      = capacity / 100 * _gc_time_penalties;
+
+//   allocation_headroom -= MIN2(allocation_headroom, spike_headroom);
+//   allocation_headroom -= MIN2(allocation_headroom, penalties);
+
+//   // TODO: Allocation rate is way too averaged to be useful during state changes
+
+//   double average_gc = _gc_time_history->avg();
+//   double time_since_last = time_since_last_gc();
+//   double allocation_rate = heap->bytes_allocated_since_gc_start() / time_since_last;
+
+//   if (average_gc > allocation_headroom / allocation_rate) {
+//     log_info(gc)("Trigger: Average GC time (%.2f ms) is above the time for allocation rate (%.0f %sB/s) to deplete free headroom (" SIZE_FORMAT "%s)",
+//                  average_gc * 1000,
+//                  byte_size_in_proper_unit(allocation_rate),     proper_unit_for_byte_size(allocation_rate),
+//                  byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
+//     log_info(gc, ergo)("Free headroom: " SIZE_FORMAT "%s (free) - " SIZE_FORMAT "%s (spike) - " SIZE_FORMAT "%s (penalties) = " SIZE_FORMAT "%s",
+//                  byte_size_in_proper_unit(available),           proper_unit_for_byte_size(available),
+//                  byte_size_in_proper_unit(spike_headroom),      proper_unit_for_byte_size(spike_headroom),
+//                  byte_size_in_proper_unit(penalties),           proper_unit_for_byte_size(penalties),
+//                  byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
+//     return true;
+//   }
+
+//   return ShenandoahHeuristics::should_start_gc();
+// }
+
 bool ShenandoahQTableHeuristics::should_start_gc() const {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   size_t max_capacity = heap->max_capacity();
@@ -131,38 +199,113 @@ bool ShenandoahQTableHeuristics::should_start_gc() const {
                    byte_size_in_proper_unit(init_threshold), proper_unit_for_byte_size(init_threshold));
       return true;
     }
+    update_qtable();
+    bool action = take_action(true);
+    if (action) {
+      log_info(gc)("Trigger: in learning process\n");
+    }
+    return action
   }
 
   // Check if allocation headroom is still okay. This also factors in:
   //   1. Some space to absorb allocation spikes
   //   2. Accumulated penalties from Degenerated and Full GC
 
-  size_t allocation_headroom = available;
+  // size_t allocation_headroom = available;
 
-  size_t spike_headroom = capacity / 100 * ShenandoahAllocSpikeFactor;
-  size_t penalties      = capacity / 100 * _gc_time_penalties;
+  // size_t spike_headroom = capacity / 100 * ShenandoahAllocSpikeFactor;
+  // size_t penalties      = capacity / 100 * _gc_time_penalties;
 
-  allocation_headroom -= MIN2(allocation_headroom, spike_headroom);
-  allocation_headroom -= MIN2(allocation_headroom, penalties);
+  // allocation_headroom -= MIN2(allocation_headroom, spike_headroom);
+  // allocation_headroom -= MIN2(allocation_headroom, penalties);
 
-  // TODO: Allocation rate is way too averaged to be useful during state changes
+  // // TODO: Allocation rate is way too averaged to be useful during state changes
 
-  double average_gc = _gc_time_history->avg();
-  double time_since_last = time_since_last_gc();
-  double allocation_rate = heap->bytes_allocated_since_gc_start() / time_since_last;
+  // double average_gc = _gc_time_history->avg();
+  // double time_since_last = time_since_last_gc();
+  // double allocation_rate = heap->bytes_allocated_since_gc_start() / time_since_last;
 
-  if (average_gc > allocation_headroom / allocation_rate) {
-    log_info(gc)("Trigger: Average GC time (%.2f ms) is above the time for allocation rate (%.0f %sB/s) to deplete free headroom (" SIZE_FORMAT "%s)",
-                 average_gc * 1000,
-                 byte_size_in_proper_unit(allocation_rate),     proper_unit_for_byte_size(allocation_rate),
-                 byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
-    log_info(gc, ergo)("Free headroom: " SIZE_FORMAT "%s (free) - " SIZE_FORMAT "%s (spike) - " SIZE_FORMAT "%s (penalties) = " SIZE_FORMAT "%s",
-                 byte_size_in_proper_unit(available),           proper_unit_for_byte_size(available),
-                 byte_size_in_proper_unit(spike_headroom),      proper_unit_for_byte_size(spike_headroom),
-                 byte_size_in_proper_unit(penalties),           proper_unit_for_byte_size(penalties),
-                 byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
-    return true;
+  // if (average_gc > allocation_headroom / allocation_rate) {
+  //   log_info(gc)("Trigger: Average GC time (%.2f ms) is above the time for allocation rate (%.0f %sB/s) to deplete free headroom (" SIZE_FORMAT "%s)",
+  //                average_gc * 1000,
+  //                byte_size_in_proper_unit(allocation_rate),     proper_unit_for_byte_size(allocation_rate),
+  //                byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
+  //   log_info(gc, ergo)("Free headroom: " SIZE_FORMAT "%s (free) - " SIZE_FORMAT "%s (spike) - " SIZE_FORMAT "%s (penalties) = " SIZE_FORMAT "%s",
+  //                byte_size_in_proper_unit(available),           proper_unit_for_byte_size(available),
+  //                byte_size_in_proper_unit(spike_headroom),      proper_unit_for_byte_size(spike_headroom),
+  //                byte_size_in_proper_unit(penalties),           proper_unit_for_byte_size(penalties),
+  //                byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
+  //   return true;
+  // }
+
+  // return ShenandoahHeuristics::should_start_gc();update_qtable();
+  bool action = take_action(false);
+  if (action) {
+    log_info(gc)("Trigger: in learning process\n");
   }
+  return action
+}
 
-  return ShenandoahHeuristics::should_start_gc();
+bool ShenandoahQTableHeuristics::take_action(bool in_learning){
+  _is_first_call = false;
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  size_t capacity = heap->soft_max_capacity();
+  size_t available = heap->free_set()->available();
+
+  _last_available = available;
+  int rand_value = rand() % 100;
+  int exploration_rate = 20;
+  if (in_learning) {
+    exploration_rate = 100;
+  }
+  if (rand_value < exploration_rate) {
+    // Explorative path: take random action
+    _last_action = static_cast<bool>(rand() %2);
+    return _last_action;
+  }
+  // Exploitative path: take action base on Q table
+  // Q table must have been updated by now
+  int table_index = static_cast<int>((available/capacity)*127)); // 128 is number of index in q table
+  float val0 = _qtable[table_index][0];
+  float val1 = _qtable[table_index][1];
+  if (val0 < val1) {
+    _last_action = true;
+    return _last_action;
+  }
+  if (val0 > val1) {
+    _last_action = false;
+    return _last_action;
+  }
+  // if the two values are equals, pick one randomly
+  _last_action = static_cast<bool>(rand() %2);
+  return _last_action;
+}
+
+float ShenandoahQTableHeuristics::get_reward(size_t available, size_t capacity) {
+  log_info(gc)("Last available: %lu | Current available: %lu\n", _last_available, available);
+  // Less stw and full gc, more reward
+  float reward = -1.0 * _gc_time_penalties;
+  // More free space = more reward
+  int available_diff = (_last_available > available) ? -1 * (_last_available - available) : available - _last_available;
+  reward += available_diff * 100.0 / capacity;
+  log_info(gc)("Reward: %f\n", reward);
+  return reward;
+}
+
+void ShenandoahQTableHeuristics::update_qtable() {
+  if (_is_first_call){
+    return;
+  }
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  size_t capacity = heap->soft_max_capacity();
+  size_t available = heap->free_set()->available();
+
+  int new_qtable_idx = static_cast<int>((available/capacity)*127));
+  int old_qtable_idx = static_cast<int>((_last_available/capacity)*127));
+  float max_at_new_idx = (_qtable[new_qtable_idx][0] > _qtable[new_qtable_idx][1]) ? _qtable[new_qtable_idx][0] : _qtable[new_qtable_idx][1];
+  int last_action = static_cast<int>_last_action;
+  assert(last_action < 2 && last_action >= 0);
+  float update_val = 0.1 * get_reward(available, capacity) + (0.8 * (max_at_new_idx - _qtable[old_qtable_idx][last_action]))
+
+  _qtable[old_qtable_idx][last_action] += update_val;
 }

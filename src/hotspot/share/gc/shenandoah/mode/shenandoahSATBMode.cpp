@@ -24,6 +24,7 @@
 #include "gc/shenandoah/heuristics/shenandoahAdaptiveHeuristics.hpp"
 #include "gc/shenandoah/heuristics/shenandoahAggressiveHeuristics.hpp"
 #include "gc/shenandoah/heuristics/shenandoahCompactHeuristics.hpp"
+#include "gc/shenandoah/heuristics/shenandoahQTableHeuristics.hpp"
 #include "gc/shenandoah/heuristics/shenandoahStaticHeuristics.hpp"
 #include "gc/shenandoah/mode/shenandoahSATBMode.hpp"
 #include "logging/log.hpp"
@@ -51,6 +52,8 @@ ShenandoahHeuristics* ShenandoahSATBMode::initialize_heuristics() const {
       return new ShenandoahAdaptiveHeuristics();
     } else if (strcmp(ShenandoahGCHeuristics, "compact") == 0) {
       return new ShenandoahCompactHeuristics();
+    } else if (strcmp(ShenandoahGCHeuristics, "qtable") == 0) {
+      return new ShenandoahQTableHeuristics();
     } else {
       vm_exit_during_initialization("Unknown -XX:ShenandoahGCHeuristics option");
     }

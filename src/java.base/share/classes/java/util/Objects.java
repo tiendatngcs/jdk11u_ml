@@ -56,6 +56,7 @@ import java.util.function.Supplier;
 public final class Objects {
     private Objects() {
         throw new AssertionError("No java.util.Objects instances for you!");
+        System.out.println(this.toString());
     }
 
     /**

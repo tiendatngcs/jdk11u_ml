@@ -48,14 +48,15 @@ public:
   virtual bool is_experimental() { return false; }
 
 private:
-  float _qtable[128][2];
+  double _qtable[128][2];
   bool _is_first_call;
   bool _last_action;
+  double _last_time_since_last;
   size_t _last_available;
 
   //  from the second call of should_start_gc()
   // Calculate the reward 
-  float get_reward(size_t available, size_t capacity);
+  double get_reward(size_t available, size_t capacity);
   //  update the qtable with the current state and the previous saved current state
   void update_qtable();
 

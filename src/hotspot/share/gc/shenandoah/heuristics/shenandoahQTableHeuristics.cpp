@@ -32,7 +32,7 @@
 #include "logging/logTag.hpp"
 #include "utilities/quickSort.hpp"
 
-ShenandoahQTableHeuristics::ShenandoahQTableHeuristics() : ShenandoahHeuristics(), _is_first_call(true) {
+ShenandoahQTableHeuristics::ShenandoahQTableHeuristics() : ShenandoahHeuristics(), _is_first_call(true), _last_time_since_last(0) {
   printf("QTableHeuristics chosen ...\n");
   memset(_qtable, 0, sizeof(_qtable));
 }
@@ -266,10 +266,10 @@ bool ShenandoahQTableHeuristics::take_action(bool in_learning){
   }
   // Exploitative path: take action base on Q table
   // Q table must have been updated by now
-  int table_index = static_cast<int>((static_cast<float>(available)/capacity)*127); // 128 is number of index in q table
+  int table_index = static_cast<int>((static_cast<double>(available)/capacity)*127); // 128 is number of index in q table
   log_info(gc)("Taking action at state %d\n", table_index);
-  float val0 = _qtable[table_index][0];
-  float val1 = _qtable[table_index][1];
+  double val0 = _qtable[table_index][0];
+  double val1 = _qtable[table_index][1];
   if (val0 < val1) {
     _last_action = true;
     return _last_action;
@@ -283,13 +283,25 @@ bool ShenandoahQTableHeuristics::take_action(bool in_learning){
   return _last_action;
 }
 
-float ShenandoahQTableHeuristics::get_reward(size_t available, size_t capacity) {
+double ShenandoahQTableHeuristics::get_reward(size_t available, size_t capacity) {
   log_info(gc)("Last available: %lu | Current available: %lu\n", _last_available, available);
   // Less stw and full gc, more reward
-  float reward = -0.1 * _gc_time_penalties;
+  double reward = -0.1 * _gc_time_penalties;
   // More free space = more reward
   int available_diff = (_last_available > available) ? -1 * (_last_available - available) : available - _last_available;
-  reward += available_diff * 100.0 / capacity;
+  // reward += available_diff * 100.0 / _last_available;
+  float space = available_diff * 100.0 / _last_available;
+
+  // More time since last GC = less GC = more reward
+  // Time since last gc > average time since last = too few gc = more reward
+  // Time since last gc < average time since last = too much gc = less reward
+  double time_since_last = time_since_last_gc();
+  double average_gc = _gc_time_history->avg();
+  // double time_since_last_diff = (_last_time_since_last > time_since_last) ? -1 * (_last_time_since_last - time_since_last) : time_since_last - _last_time_since_last;
+  // _last_time_since_last = time_since_last;
+
+  double time_since_last_diff = (time_since_last > average_gc) ? (time_since_last - average_gc) : -1 * (average_gc - time_since_last);
+  reward += time_since_last_diff * space;
   log_info(gc)("Reward: %f\n", reward);
   return reward;
 }
@@ -303,13 +315,13 @@ void ShenandoahQTableHeuristics::update_qtable() {
   size_t capacity = heap->soft_max_capacity();
   size_t available = heap->free_set()->available();
 
-  int new_qtable_idx = static_cast<int>((static_cast<float>(available)/capacity)*127);
-  int old_qtable_idx = static_cast<int>((static_cast<float>(_last_available)/capacity)*127);
+  int new_qtable_idx = static_cast<int>((static_cast<double>(available)/capacity)*127);
+  int old_qtable_idx = static_cast<int>((static_cast<double>(_last_available)/capacity)*127);
   log_info(gc)("New state: %d | Old State: %d\n", new_qtable_idx, old_qtable_idx);
-  float max_at_new_idx = (_qtable[new_qtable_idx][0] > _qtable[new_qtable_idx][1]) ? _qtable[new_qtable_idx][0] : _qtable[new_qtable_idx][1];
+  double max_at_new_idx = (_qtable[new_qtable_idx][0] > _qtable[new_qtable_idx][1]) ? _qtable[new_qtable_idx][0] : _qtable[new_qtable_idx][1];
   int last_action = static_cast<int>(_last_action);
   assert(last_action < 2 && last_action >= 0, "Action must be 0 or 1");
-  float update_val = 1.0 * get_reward(available, capacity) + (0.8 * (max_at_new_idx - _qtable[old_qtable_idx][last_action]));
+  double update_val = 1.0 * get_reward(available, capacity) + (0.8 * (max_at_new_idx - _qtable[old_qtable_idx][last_action]));
   log_info(gc)("Update value: %f | update at index: %d, %d\n", update_val, old_qtable_idx, last_action);
 
   _qtable[old_qtable_idx][last_action] += update_val;

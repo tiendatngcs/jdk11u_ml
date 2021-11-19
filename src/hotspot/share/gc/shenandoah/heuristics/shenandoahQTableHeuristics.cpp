@@ -239,9 +239,10 @@ bool ShenandoahQTableHeuristics::should_start_gc() {
   // }
 
   // return ShenandoahHeuristics::should_start_gc();update_qtable();
+  update_qtable();
   bool action = take_action(false);
   if (action) {
-    log_info(gc)("Trigger: in learning process\n");
+    log_info(gc)("Trigger: out of learning\n");
   }
   return action;
 }
@@ -293,6 +294,7 @@ float ShenandoahQTableHeuristics::get_reward(size_t available, size_t capacity) 
 }
 
 void ShenandoahQTableHeuristics::update_qtable() {
+  log_info(gc)("Updating qtable\n");
   if (_is_first_call){
     return;
   }
@@ -306,6 +308,7 @@ void ShenandoahQTableHeuristics::update_qtable() {
   int last_action = static_cast<int>(_last_action);
   assert(last_action < 2 && last_action >= 0, "Action must be 0 or 1");
   float update_val = 0.1 * get_reward(available, capacity) + (0.8 * (max_at_new_idx - _qtable[old_qtable_idx][last_action]));
+  log_info(gc)("Update value: %f | update at index: %d, %d\n", update_val, old_qtable_idx, last_action);
 
   _qtable[old_qtable_idx][last_action] += update_val;
 }

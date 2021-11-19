@@ -286,7 +286,7 @@ bool ShenandoahQTableHeuristics::take_action(bool in_learning){
 float ShenandoahQTableHeuristics::get_reward(size_t available, size_t capacity) {
   log_info(gc)("Last available: %lu | Current available: %lu\n", _last_available, available);
   // Less stw and full gc, more reward
-  float reward = -1.0 * _gc_time_penalties;
+  float reward = -0.1 * _gc_time_penalties;
   // More free space = more reward
   int available_diff = (_last_available > available) ? -1 * (_last_available - available) : available - _last_available;
   reward += available_diff * 100.0 / capacity;

@@ -266,7 +266,8 @@ bool ShenandoahQTableHeuristics::take_action(bool in_learning){
   }
   // Exploitative path: take action base on Q table
   // Q table must have been updated by now
-  int table_index = static_cast<int>((available/capacity)*127); // 128 is number of index in q table
+  int table_index = static_cast<int>((static_cast<float>(available)/capacity)*127); // 128 is number of index in q table
+  log_info(gc)("Taking action at state %d\n", table_index);
   float val0 = _qtable[table_index][0];
   float val1 = _qtable[table_index][1];
   if (val0 < val1) {
@@ -302,12 +303,13 @@ void ShenandoahQTableHeuristics::update_qtable() {
   size_t capacity = heap->soft_max_capacity();
   size_t available = heap->free_set()->available();
 
-  int new_qtable_idx = static_cast<int>((available/capacity)*127);
-  int old_qtable_idx = static_cast<int>((_last_available/capacity)*127);
+  int new_qtable_idx = static_cast<int>((static_cast<float>(available)/capacity)*127);
+  int old_qtable_idx = static_cast<int>((static_cast<float>(_last_available)/capacity)*127);
+  log_info(gc)("New state: %d | Old State: %d\n", new_qtable_idx, old_qtable_idx);
   float max_at_new_idx = (_qtable[new_qtable_idx][0] > _qtable[new_qtable_idx][1]) ? _qtable[new_qtable_idx][0] : _qtable[new_qtable_idx][1];
   int last_action = static_cast<int>(_last_action);
   assert(last_action < 2 && last_action >= 0, "Action must be 0 or 1");
-  float update_val = 0.1 * get_reward(available, capacity) + (0.8 * (max_at_new_idx - _qtable[old_qtable_idx][last_action]));
+  float update_val = 1.0 * get_reward(available, capacity) + (0.8 * (max_at_new_idx - _qtable[old_qtable_idx][last_action]));
   log_info(gc)("Update value: %f | update at index: %d, %d\n", update_val, old_qtable_idx, last_action);
 
   _qtable[old_qtable_idx][last_action] += update_val;

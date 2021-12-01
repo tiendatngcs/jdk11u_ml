@@ -255,10 +255,7 @@ bool ShenandoahQTableHeuristics::take_action(bool in_learning){
 
   _last_available = available;
   int rand_value = rand() % 100;
-  int exploration_rate = 20;
-  if (in_learning) {
-    exploration_rate = 100;
-  }
+  int exploration_rate = 100  * static_cast<int>((ShenandoahLearningSteps - _gc_times_learned) / ShenandoahLearningSteps);
   if (rand_value < exploration_rate) {
     // Explorative path: take random action
     _last_action = static_cast<bool>(rand() %2);
